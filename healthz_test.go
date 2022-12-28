@@ -1,4 +1,4 @@
-package healthz
+package healthz_test
 
 import (
 	"encoding/json"
@@ -9,10 +9,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wojas/go-healthz"
 )
 
 func TestHealthz(t *testing.T) {
-	s := httptest.NewServer(Handler())
+	ch := healthz.NewChecker(nil)
+
+	s := httptest.NewServer(ch.Handler())
 	defer s.Close()
 
 	// it should get the health status
@@ -20,11 +23,14 @@ func TestHealthz(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, code)
+	require.True(t, status.OK)
+	require.False(t, status.HasWarnings)
 	require.Len(t, status.Metadata, 0)
 	require.Len(t, status.Failures, 0)
+	require.Len(t, status.Warnings, 0)
 
 	// it should set a metadata value
-	Set("version", "1.0.0")
+	ch.Set("version", "1.0.0")
 
 	status, code, err = get(s.URL)
 	require.NoError(t, err)
@@ -33,7 +39,7 @@ func TestHealthz(t *testing.T) {
 	require.Equal(t, "1.0.0", status.Metadata["version"])
 
 	// it should delete a metadata value
-	Delete("version")
+	ch.Delete("version")
 
 	status, code, err = get(s.URL)
 	require.NoError(t, err)
@@ -41,40 +47,63 @@ func TestHealthz(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	require.Nil(t, status.Metadata["version"])
 
-	// it register a check that suceedes the first time is check but fails afterwards.
-	Register("a_check", 3*time.Second, func() CheckFunc {
-		var err error
+	// register a check that succeeds until an error is set through
+	// this channel.
+	checkErrorChan := make(chan error)
+	ch.Register("a_check", 10*time.Millisecond, func() healthz.CheckFunc {
+		var curErr error
 		return func() error {
-			if err == nil {
-				err = errors.New("bad thing happened")
-				return nil
+			select {
+			case err, ok := <-checkErrorChan:
+				if ok {
+					curErr = err
+				}
+			default:
 			}
-			return err
+			return curErr
 		}
 	}())
+	defer ch.Deregister("a_check")
 
 	status, code, err = get(s.URL)
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, code)
+	require.True(t, status.OK)
 	require.Empty(t, status.Failures["a_check"])
 
-	time.Sleep(3 * time.Second)
+	ch.Register("a_warning", time.Second, func() error {
+		return healthz.Warn("test warning")
+	})
+	defer ch.Deregister("a_warning")
+
+	status, code, err = get(s.URL)
+	require.NoError(t, err)
+
+	require.Equal(t, http.StatusOK, code)
+	require.True(t, status.OK)
+	require.True(t, status.HasWarnings)
+	require.Empty(t, status.Failures["a_warning"])
+	require.Equal(t, "test warning", status.Warnings["a_warning"])
+
+	// Set an error
+	checkErrorChan <- errors.New("bad thing happened")
 
 	status, code, err = get(s.URL)
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusServiceUnavailable, code)
+	require.False(t, status.OK)
 	require.Equal(t, "bad thing happened", status.Failures["a_check"])
 }
 
-func get(url string) (*Status, int, error) {
+func get(url string) (*healthz.Status, int, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer res.Body.Close()
 
-	status := new(Status)
+	status := new(healthz.Status)
 	return status, res.StatusCode, json.NewDecoder(res.Body).Decode(status)
 }
