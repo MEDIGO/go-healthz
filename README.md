@@ -4,6 +4,11 @@
 
 This package provides an HTTP handler that returns information about the health status of the application. If the application is healthy and all the registered check pass, it returns a `200 OK` HTTP status, otherwise, it fails with a `503 Service Unavailable`. All responses contain a JSON encoded payload with information about the runtime system, current checks statuses and some configurable metadata.
 
+This us a fork of [github.com/MEDIGO/go-healthz](https://github.com/MEDIGO/go-healthz). Improvements include:
+
+- Added the ability to return warnings from checkers that are not considered service failures.
+- Several locking fixes.
+
 ### Usage
 
 ```go
@@ -14,7 +19,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/MEDIGO/go-healthz"
+	"github.com/wojas/go-healthz"
 )
 
 const version = "1.0.0"
@@ -24,6 +29,10 @@ func main() {
 
 	healthz.Register("important_check", time.Second*5, func() error {
 		return errors.New("fail fail fail")
+	})
+
+	healthz.Register("some_warning", time.Second*5, func() error {
+		return healthz.Warn("some warning")
 	})
 
 	http.Handle("/healthz", healthz.Handler())
@@ -39,6 +48,8 @@ Content-Type: application/json
 Date: Fri, 23 Sep 2016 08:55:16 GMT
 
 {
+    "ok": false,
+    "has_warnings": true,
     "status": "Unavailable",
     "time": "2016-09-23T10:55:16.781538256+02:00",
     "since": "2016-09-23T10:55:14.268149643+02:00",
@@ -47,6 +58,9 @@ Date: Fri, 23 Sep 2016 08:55:16 GMT
     },
     "failures": {
         "important_check": "fail fail fail"
+    },
+    "warnings": {
+        "some_warning": "some_warning"
     },
     "runtime": {
         "alloc_bytes": 314048,
@@ -63,5 +77,6 @@ Date: Fri, 23 Sep 2016 08:55:16 GMT
 ## Copyright and license
 
 Copyright © 2016 MEDIGO GmbH.
+Copyright © 2022-present other contributors, see git history.
 
 go-healthz is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
