@@ -9,6 +9,8 @@ import (
 
 // Config parameterizes a Checker.
 type Config struct {
+	// RuntimeTTL is the time between checking runtime stats like memory usage.
+	// It defaults to DefaultRuntimeTTL.
 	RuntimeTTL time.Duration
 }
 
@@ -25,6 +27,7 @@ type Checker struct {
 }
 
 // NewChecker creates a new Checker.
+// Using a custom Checker instead of the global DefaultChecker is not recommended.
 func NewChecker(config *Config) *Checker {
 	if config == nil {
 		config = &Config{}
@@ -42,17 +45,17 @@ func NewChecker(config *Config) *Checker {
 	}
 }
 
-// Set sets a name value pair as a metadata entry to be returned with earch response.
-// This can be used to store useful debug informaton like version numbers
-// or git commit shas.
-func (c *Checker) Set(name string, value interface{}) {
+// SetMeta sets a name value pair as a metadata entry to be returned with each response.
+// This can be used to store useful debug information like version numbers
+// or git commit hashes.
+func (c *Checker) SetMeta(name string, value interface{}) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.metadata[name] = value
 }
 
-// Delete deletes a named entry from the configured metadata.
-func (c *Checker) Delete(name string) {
+// DeleteMeta deletes a named entry from the configured metadata.
+func (c *Checker) DeleteMeta(name string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	delete(c.metadata, name)
@@ -63,21 +66,49 @@ func (c *Checker) Register(name string, period time.Duration, fn CheckFunc) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if check := c.checks[name]; check != nil {
+	if ch := c.checks[name]; ch != nil {
 		// TODO: error or log warning when registering the same twice?
-		check.Close()
+		ch.Close()
 	}
 
-	check := &check{
+	ch := &check{
+		static: false,
 		period: period,
 		fn:     fn,
 		err:    errors.New("pending"),
 		stopch: make(chan bool, 1),
 	}
 
-	go check.Do()
+	go ch.Do()
 
-	c.checks[name] = check
+	c.checks[name] = ch
+}
+
+// SetMeta sets a static status value without a periodic checker function.
+// This can be useful if your application has an event loop that can directly
+// update the status for real-time information, instead of relying on a
+// checker function to run periodically.
+// If the expiry duration is not 0, the status will be reset to Expired
+// after this duration, if no new value is set in the meantime.
+func (c *Checker) Set(name string, err error, expiry time.Duration) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if ch := c.checks[name]; ch != nil {
+		// TODO: error or log warning when registering the same twice?
+		ch.Close()
+	}
+
+	ch := &check{
+		static: true,
+		expiry: expiry,
+		err:    err,
+		stopch: make(chan bool, 1),
+	}
+
+	go ch.Do()
+
+	c.checks[name] = ch
 }
 
 // Deregister deregisters a check.

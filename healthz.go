@@ -9,8 +9,11 @@ import (
 var (
 	// DefaultRuntimeTTL is the default TTL of the collected runtime stats.
 	DefaultRuntimeTTL = 15 * time.Second
+
 	// DefaultChecker is the default global checker referenced by the shortcut
-	// functions in this package. Change this variable with caution.
+	// functions in this package. Change this variable with caution, because
+	// you will lose any checkers that have already been registered to the
+	// old one.
 	DefaultChecker = NewChecker(&Config{DefaultRuntimeTTL})
 )
 
@@ -49,14 +52,14 @@ type Runtime struct {
 	TotalAllocBytes  int       `json:"total_alloc_bytes"`
 }
 
-// Set is a shortcut for DefaultChecker.Set. See there for more information.
-func Set(name string, value interface{}) {
-	DefaultChecker.Set(name, value)
+// SetMeta is a shortcut for DefaultChecker.SetMeta. See there for more information.
+func SetMeta(name string, value interface{}) {
+	DefaultChecker.SetMeta(name, value)
 }
 
-// Delete is a shortcut for DefaultChecker.Delete. See there for more information.
-func Delete(name string) {
-	DefaultChecker.Delete(name)
+// DeleteMeta is a shortcut for DefaultChecker.DeleteMeta. See there for more information.
+func DeleteMeta(name string) {
+	DefaultChecker.DeleteMeta(name)
 }
 
 // Handler is a shortcut for DefaultChecker.Handler. See there for more information.
@@ -67,6 +70,11 @@ func Handler() http.Handler {
 // Register is a shortcut for DefaultChecker.Register. See there for more information.
 func Register(name string, period time.Duration, fn CheckFunc) {
 	DefaultChecker.Register(name, period, fn)
+}
+
+// Set is a shortcut for DefaultChecker.Set. See there for more information.
+func Set(name string, err error, timeout time.Duration) {
+	DefaultChecker.Set(name, err, timeout)
 }
 
 // Deregister is a shortcut for DefaultChecker.Deregister. See there for more information.
