@@ -40,8 +40,8 @@ type Status struct {
 	Time        time.Time              `json:"time"`
 	Since       time.Time              `json:"since"`
 	Runtime     Runtime                `json:"runtime"`
-	Failures    map[string]string      `json:"failures,omitempty"`
-	Warnings    map[string]string      `json:"warnings,omitempty"`
+	Failures    map[string]string      `json:"failures"`
+	Warnings    map[string]string      `json:"warnings"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
