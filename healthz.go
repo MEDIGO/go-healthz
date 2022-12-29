@@ -86,3 +86,9 @@ func Set(name string, err error, timeout time.Duration) {
 func Deregister(name string) {
 	DefaultChecker.Deregister(name)
 }
+
+// AddBuildInfo adds some build info like VCS from debug.ReadBuildInfo to the
+// metadata.
+func AddBuildInfo() {
+	DefaultChecker.AddBuildInfo()
+}

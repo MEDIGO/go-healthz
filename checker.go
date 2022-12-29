@@ -3,6 +3,8 @@ package healthz
 import (
 	"errors"
 	"runtime"
+	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 )
@@ -188,5 +190,20 @@ func collect() Runtime {
 		HeapObjectsCount: int(ms.HeapObjects),
 		AllocBytes:       int(ms.Alloc),
 		TotalAllocBytes:  int(ms.TotalAlloc),
+	}
+}
+
+// AddBuildInfo will add build information like the Go version and VCS
+// to the exposed metadata.
+func (c *Checker) AddBuildInfo() {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+	for _, s := range bi.Settings {
+		if !strings.HasPrefix(s.Key, "vcs") {
+			continue
+		}
+		c.SetMeta(strings.ReplaceAll(s.Key, ".", "_"), s.Value)
 	}
 }
