@@ -63,6 +63,13 @@ func (c *Checker) DeleteMeta(name string) {
 
 // Register registers a check to be evaluated each given period.
 func (c *Checker) Register(name string, period time.Duration, fn CheckFunc) {
+	if fn == nil {
+		panic("nil CheckFunc")
+	}
+	if period == 0 {
+		period = DefaultCheckPeriod
+	}
+
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -84,7 +91,7 @@ func (c *Checker) Register(name string, period time.Duration, fn CheckFunc) {
 	c.checks[name] = ch
 }
 
-// SetMeta sets a static status value without a periodic checker function.
+// Set sets a static status value without a periodic checker function.
 // This can be useful if your application has an event loop that can directly
 // update the status for real-time information, instead of relying on a
 // checker function to run periodically.
@@ -116,12 +123,12 @@ func (c *Checker) Deregister(name string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	check := c.checks[name]
-	if check == nil {
+	ch := c.checks[name]
+	if ch == nil {
 		return
 	}
 
-	check.Close()
+	ch.Close()
 
 	delete(c.checks, name)
 }

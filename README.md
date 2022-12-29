@@ -4,10 +4,13 @@
 
 This package provides an HTTP handler that returns information about the health status of the application. If the application is healthy and all the registered check pass, it returns a `200 OK` HTTP status, otherwise, it fails with a `503 Service Unavailable`. All responses contain a JSON encoded payload with information about the runtime system, current checks statuses and some configurable metadata.
 
-This us a fork of [github.com/MEDIGO/go-healthz](https://github.com/MEDIGO/go-healthz). Improvements include:
+This is a fork of [github.com/MEDIGO/go-healthz](https://github.com/MEDIGO/go-healthz) with breaking changes. Changes include:
 
 - Added the ability to return warnings from checkers that are not considered service failures.
+- Renamed Set and Delete to SetMeta and DeleteMeta (this is a breaking change)
+- Added Set to statically set a check status without callbacks with optional timeout. This is useful if you already have an event loop.
 - Several locking fixes.
+
 
 ### Usage
 
@@ -25,7 +28,7 @@ import (
 const version = "1.0.0"
 
 func main() {
-	healthz.Set("version", version)
+	healthz.SetMeta("version", version)
 
 	healthz.Register("important_check", time.Second*5, func() error {
 		return errors.New("fail fail fail")
@@ -34,6 +37,8 @@ func main() {
 	healthz.Register("some_warning", time.Second*5, func() error {
 		return healthz.Warn("some warning")
 	})
+
+	healthz.Set("other_warning", healthz.Warn("static value"), time.Hour)
 
 	http.Handle("/healthz", healthz.Handler())
 	http.ListenAndServe(":8000", nil)
@@ -60,7 +65,8 @@ Date: Fri, 23 Sep 2016 08:55:16 GMT
         "important_check": "fail fail fail"
     },
     "warnings": {
-        "some_warning": "some_warning"
+        "some_warning": "some warning",
+        "other_warning": "static value"
     },
     "runtime": {
         "alloc_bytes": 314048,
@@ -69,7 +75,7 @@ Date: Fri, 23 Sep 2016 08:55:16 GMT
         "heap_objects_count": 4575,
         "os": "darwin",
         "total_alloc_bytes": 314048,
-        "version": "go1.7"
+        "version": "go1.19"
     }
 }
 ```

@@ -6,10 +6,15 @@ import (
 	"time"
 )
 
-var (
+const (
 	// DefaultRuntimeTTL is the default TTL of the collected runtime stats.
 	DefaultRuntimeTTL = 15 * time.Second
 
+	// DefaultCheckPeriod is the default check period if 0 is passed to Register
+	DefaultCheckPeriod = time.Second
+)
+
+var (
 	// DefaultChecker is the default global checker referenced by the shortcut
 	// functions in this package. Change this variable with caution, because
 	// you will lose any checkers that have already been registered to the

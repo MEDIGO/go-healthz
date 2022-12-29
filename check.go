@@ -29,62 +29,62 @@ type check struct {
 	stopch chan bool
 }
 
-func (c *check) Do() {
-	if c.static {
-		c.doStatic()
+func (ch *check) Do() {
+	if ch.static {
+		ch.doStatic()
 	} else {
-		c.doCallbacks()
+		ch.doCallbacks()
 	}
 }
 
-func (c *check) doStatic() {
+func (ch *check) doStatic() {
 	// Static value set by SetMeta, with optional expiry
-	if c.expiry == 0 {
+	if ch.expiry == 0 {
 		return
 	}
-	t := time.NewTimer(c.expiry)
+	t := time.NewTimer(ch.expiry)
 	defer t.Stop()
 	select {
 	case <-t.C:
-		c.mutex.Lock()
-		c.err = Expired{expiry: c.expiry}
-		c.mutex.Unlock()
-	case <-c.stopch:
+		ch.mutex.Lock()
+		ch.err = Expired{expiry: ch.expiry}
+		ch.mutex.Unlock()
+	case <-ch.stopch:
 	}
 }
 
-func (c *check) doCallbacks() {
+func (ch *check) doCallbacks() {
 	// Periodic callbacks
-	t := time.NewTicker(c.period)
+	t := time.NewTicker(ch.period)
 	defer t.Stop()
 
-	c.doOnce()
+	ch.doOnce()
 	for {
 		select {
 		case <-t.C:
-			c.doOnce()
-		case <-c.stopch:
+			ch.doOnce()
+		case <-ch.stopch:
 			return
 		}
 	}
 }
 
-func (c *check) doOnce() {
+func (ch *check) doOnce() {
 	// TODO: Perhaps log transitions?
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.err = c.fn()
+	ch.mutex.Lock()
+	defer ch.mutex.Unlock()
+	ch.err = ch.fn()
 }
 
-func (c *check) Close() {
+func (ch *check) Close() {
 	select {
-	case c.stopch <- true:
+	case ch.stopch <- true:
 	default: // do not block if called twice
 	}
 }
 
-func (c *check) Status() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	return c.err
+func (ch *check) Status() error {
+	ch.mutex.Lock()
+	defer ch.mutex.Unlock()
+	return ch.err
 }
