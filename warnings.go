@@ -1,6 +1,9 @@
 package healthz
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Warning is a type of error that is considered a warning instead of a failure.
 // It will not cause the health check to fail, but the warning will appear
@@ -24,7 +27,13 @@ func Warnf(format string, args ...interface{}) error {
 }
 
 // IsWarning returns true if the error is a Warning instead of a failure.
+// It will recursively unwrap the error to look for a Warning.
 func IsWarning(err error) bool {
-	_, ok := err.(Warning)
-	return ok
+	for err != nil {
+		if _, ok := err.(Warning); ok {
+			return true
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
 }
