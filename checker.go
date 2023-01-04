@@ -135,6 +135,21 @@ func (c *Checker) Deregister(name string) {
 	delete(c.checks, name)
 }
 
+// Close removes all existing checks
+func (c *Checker) Close() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	var names []string
+	for name := range c.checks {
+		names = append(names, name)
+	}
+	for _, name := range names {
+		c.checks[name].Close()
+		delete(c.checks, name)
+	}
+}
+
 // Status returns the current service status.
 func (c *Checker) Status() Status {
 	c.mutex.Lock()
@@ -150,11 +165,7 @@ func (c *Checker) Status() Status {
 	warnings := make(map[string]string)
 	for name, check := range c.checks {
 		if err := check.Status(); err != nil {
-			if IsWarning(err) {
-				warnings[name] = err.Error()
-			} else {
-				failures[name] = err.Error()
-			}
+			mapError(name, err, failures, warnings)
 		}
 	}
 
@@ -175,6 +186,20 @@ func (c *Checker) Status() Status {
 		Metadata:    c.metadata,
 		Failures:    failures,
 		Warnings:    warnings,
+	}
+}
+
+func mapError(name string, err error, failures, warnings map[string]string) {
+	if sme, ok := err.(ScopedMultiError); ok {
+		for key, subErr := range sme {
+			mapError(name+"/"+key, subErr, failures, warnings)
+		}
+		return
+	}
+	if IsWarning(err) {
+		warnings[name] = err.Error()
+	} else {
+		failures[name] = err.Error()
 	}
 }
 

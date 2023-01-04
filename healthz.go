@@ -82,6 +82,12 @@ func Set(name string, err error, timeout time.Duration) {
 	DefaultChecker.Set(name, err, timeout)
 }
 
+// RegisterRemote registers a remote /healthz endpoint that needs to be monitored.
+// See Checker.RegisterRemote for details.
+func RegisterRemote(name string, period time.Duration, url string, opt *RemoteOptions) error {
+	return DefaultChecker.RegisterRemote(name, period, url, opt)
+}
+
 // Deregister is a shortcut for DefaultChecker.Deregister. See there for more information.
 func Deregister(name string) {
 	DefaultChecker.Deregister(name)

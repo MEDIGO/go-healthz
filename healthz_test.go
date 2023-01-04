@@ -110,6 +110,16 @@ func TestHealthz(t *testing.T) {
 	require.False(t, status.OK)
 	require.Equal(t, "static error", status.Failures["static"])
 
+	// SetMeta to replace a static error
+	ch.Set("static", errors.New("new static error"), 200*time.Millisecond)
+	defer ch.Deregister("static")
+
+	status, code, err = get(s.URL)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusServiceUnavailable, code)
+	require.False(t, status.OK)
+	require.Equal(t, "new static error", status.Failures["static"])
+
 	time.Sleep(200 * time.Millisecond)
 
 	status, code, err = get(s.URL)
