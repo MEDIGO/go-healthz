@@ -62,6 +62,6 @@ Date: Fri, 23 Sep 2016 08:55:16 GMT
 
 ## Copyright and license
 
-Copyright © 2016 MEDIGO GmbH.
+Copyright © 2025 MEDIGO GmbH.
 
 go-healthz is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.

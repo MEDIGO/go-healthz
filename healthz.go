@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"runtime"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -41,6 +42,7 @@ type Runtime struct {
 	Arch             string    `json:"arch"`
 	OS               string    `json:"os"`
 	Version          string    `json:"version"`
+	GoVersion        string    `json:"go_version"`
 	GoroutinesCount  int       `json:"goroutines_count"`
 	HeapObjectsCount int       `json:"heap_objects_count"`
 	AllocBytes       int       `json:"alloc_bytes"`
@@ -242,6 +244,20 @@ func Register(name string, period time.Duration, fn CheckFunc) {
 func Deregister(name string) {
 	DefaultChecker.Deregister(name)
 }
+func getCommitHash() string {
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+
+	for _, setting := range buildInfo.Settings {
+		if setting.Key == "vcs.revision" {
+			return setting.Value
+		}
+	}
+
+	return "unknown"
+}
 
 func collect() Runtime {
 	ms := runtime.MemStats{}
@@ -250,8 +266,9 @@ func collect() Runtime {
 		CollectedAt:      time.Now(),
 		Arch:             runtime.GOARCH,
 		OS:               runtime.GOOS,
-		Version:          runtime.Version(),
+		GoVersion:        runtime.Version(),
 		GoroutinesCount:  runtime.NumGoroutine(),
+		Version:          getCommitHash(),
 		HeapObjectsCount: int(ms.HeapObjects),
 		AllocBytes:       int(ms.Alloc),
 		TotalAllocBytes:  int(ms.TotalAlloc),
